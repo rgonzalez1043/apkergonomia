@@ -1,0 +1,53 @@
+# Archivos del sistema y editores
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history/
+.svn/
+
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Dart / Flutter / Pub
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+/coverage/
+app.*.symbols
+app.*.map.json
+
+# Salidas de compilacion Android
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+
+# Credenciales y configuracion local
+.env
+.env.*
+!.env.example
+**/key.properties
+**/local.properties
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.pem
+
+# Herramientas locales
+tooling/.venv/
+tooling/.cache/
