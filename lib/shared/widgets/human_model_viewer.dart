@@ -8,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/platform_capabilities.dart';
 
 /// Visor de modelo 3D con fallback animado cuando WebGL no está disponible
 /// (p.ej. emulador x86 sin soporte GLES).
@@ -48,7 +49,7 @@ class _HumanModelViewerState extends State<HumanModelViewer>
   // En web, model_viewer_plus administra su propio estado de carga. Los
   // JavascriptChannel solo notifican de forma fiable en WebView movil.
   bool _showFallback = !kIsWeb;
-  bool _modelFailed = false;
+  bool _modelFailed = !supportsEmbeddedViewers;
   Timer? _loadTimer;
 
   late final AnimationController _pulseCtrl = AnimationController(
@@ -59,6 +60,7 @@ class _HumanModelViewerState extends State<HumanModelViewer>
   @override
   void initState() {
     super.initState();
+    if (_modelFailed) return;
     // Si en 30 s no llegó 'load', marcamos como fallido y retiramos el WebView.
     _loadTimer = Timer(const Duration(seconds: 30), () {
       if (mounted && _showFallback) {

@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.38%2B-02569B?logo=flutter&logoColor=white" alt="Flutter 3.38 o posterior">
   <img src="https://img.shields.io/badge/Dart-3%2B-0175C2?logo=dart&logoColor=white" alt="Dart 3 o posterior">
   <img src="https://img.shields.io/badge/ejercicios-66-16803A" alt="66 ejercicios">
-  <img src="https://img.shields.io/badge/pruebas-12%20aprobadas-16803A" alt="12 pruebas aprobadas">
+  <img src="https://img.shields.io/badge/pruebas-54%20aprobadas-16803A" alt="54 pruebas aprobadas">
 </p>
 
 ## Descripción
@@ -36,8 +36,9 @@ ejecutarse sin configurar un backend.
 | Ejercicios guiados | 66 ejercicios asociados a 35 videos de personas reales realizando los movimientos |
 | Reproducción | Video integrado desde la fuente HTTPS original, con controles y alternativa para abrirlo externamente |
 | Respiración | Sesiones guiadas con temporizador y estados controlados mediante BLoC |
-| Progreso | Experiencia, niveles, logros, rachas y personalización de avatar |
-| Sesión | Onboarding, acceso local persistente y cierre de sesión |
+| Progreso | Experiencia, niveles, logros y rachas persistentes por perfil, conectados con las acciones de la app |
+| Sesión | Onboarding, acceso local persistente, rutas protegidas y cierre de sesión |
+| Datos locales | Historial, avatar y progreso separados por perfil; migración de datos anteriores con copia conservada |
 
 ## Videos de ejercicios
 
@@ -89,8 +90,17 @@ flutter build web --release --no-wasm-dry-run
 flutter build apk --debug
 ```
 
-La versión actual se verificó sin hallazgos del analizador, con 12 pruebas
+La versión actual se verificó sin hallazgos del analizador, con 54 pruebas
 aprobadas y compilaciones correctas para Web y Android.
+
+La revisión del 6 de octubre de 2026 incluye pruebas de navegación, migración y
+separación de perfiles, concurrencia, persistencia de logros, temporizadores y
+formularios con texto ampliado. Consulta el informe de auditoría para conocer
+el alcance exacto de las comprobaciones y los pendientes.
+
+En Windows, el mapa utiliza la lista de regiones y una vista previa alternativa;
+los videos se abren en el navegador. Los visores integrados se utilizan en Web,
+Android e iOS.
 
 ## Estructura
 

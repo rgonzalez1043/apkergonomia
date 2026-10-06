@@ -9,6 +9,7 @@ import 'avatar_state.dart';
 class AvatarCubit extends Cubit<AvatarState> {
   final LoadAvatarConfig loadAvatarConfig;
   final SaveAvatarConfig saveAvatarConfig;
+  int _revision = 0;
 
   AvatarCubit({
     required this.loadAvatarConfig,
@@ -16,8 +17,11 @@ class AvatarCubit extends Cubit<AvatarState> {
   }) : super(const AvatarState());
 
   Future<void> loadConfig() async {
+    if (state.isSaving) return;
+    final revision = ++_revision;
     emit(state.copyWith(isLoading: true, clearError: true, saveSuccess: false));
     final result = await loadAvatarConfig(const NoParams());
+    if (isClosed || revision != _revision) return;
     result.fold(
       (failure) =>
           emit(state.copyWith(isLoading: false, error: failure.message)),
@@ -26,7 +30,12 @@ class AvatarCubit extends Cubit<AvatarState> {
   }
 
   void updateConfig(AvatarConfig config) {
-    emit(state.copyWith(config: config, saveSuccess: false, clearError: true));
+    _revision++;
+    emit(state.copyWith(
+        config: config,
+        isLoading: false,
+        saveSuccess: false,
+        clearError: true));
   }
 
   void updateEmotion(AvatarEmotion emotion) {
@@ -54,12 +63,16 @@ class AvatarCubit extends Cubit<AvatarState> {
   }
 
   Future<void> save() async {
+    if (state.isSaving || state.isLoading) return;
+    final config = state.config;
     emit(state.copyWith(isSaving: true, clearError: true, saveSuccess: false));
-    final result = await saveAvatarConfig(state.config);
+    final result = await saveAvatarConfig(config);
+    if (isClosed) return;
     result.fold(
       (failure) =>
           emit(state.copyWith(isSaving: false, error: failure.message)),
-      (_) => emit(state.copyWith(isSaving: false, saveSuccess: true)),
+      (_) => emit(
+          state.copyWith(isSaving: false, saveSuccess: state.config == config)),
     );
   }
 }

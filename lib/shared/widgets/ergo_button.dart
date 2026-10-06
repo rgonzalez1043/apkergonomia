@@ -35,19 +35,21 @@ class ErgoButton extends StatelessWidget {
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 18),
                 const SizedBox(width: 8)
               ],
-              Text(label),
+              Flexible(child: Text(label, textAlign: TextAlign.center)),
             ],
           );
 
     if (isOutlined) {
-      return SizedBox(
-        height: height ?? AppDimensions.buttonHeight,
-        width: double.infinity,
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+            minHeight: height ?? AppDimensions.buttonHeight,
+            minWidth: double.infinity),
         child: OutlinedButton(
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
@@ -62,9 +64,10 @@ class ErgoButton extends StatelessWidget {
       );
     }
 
-    return SizedBox(
-      height: height ?? AppDimensions.buttonHeight,
-      width: double.infinity,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+          minHeight: height ?? AppDimensions.buttonHeight,
+          minWidth: double.infinity),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(

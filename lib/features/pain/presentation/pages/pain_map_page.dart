@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../shared/widgets/ergo_button.dart';
+import '../../../gamification/presentation/cubit/gamification_cubit.dart';
 import '../../domain/entities/exercise.dart';
 import '../../domain/entities/pain_record.dart';
 import '../bloc/pain_bloc.dart';
@@ -27,6 +28,7 @@ class PainMapPage extends StatelessWidget {
           (current.error != null && current.error != previous.error),
       listener: (context, state) {
         if (state.recordSaved) {
+          context.read<GamificationCubit>().recordPainEntry();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('✓ Registro guardado'),
@@ -258,6 +260,9 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
     setState(() {
       if (_repeatCount < _activeExercise!.reps) {
         _repeatCount += 1;
+        if (_repeatCount == _activeExercise!.reps) {
+          context.read<GamificationCubit>().recordExerciseCompletion();
+        }
       }
     });
   }
@@ -412,31 +417,34 @@ class _HistorySheet extends StatelessWidget {
               ),
               const SizedBox(height: AppDimensions.md),
               Expanded(
-                child: state.history.isEmpty
-                    ? const Center(child: Text('Sin registros de dolor aún'))
-                    : ListView.builder(
-                        controller: controller,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppDimensions.screenPadding),
-                        itemCount: state.history.length,
-                        itemBuilder: (context, i) {
-                          final r = state.history[i];
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  AppColors.painModule.withValues(alpha: 0.15),
-                              child: Text('${r.evaScore}',
-                                  style: const TextStyle(
-                                      color: AppColors.painModule,
-                                      fontWeight: FontWeight.w700)),
-                            ),
-                            title: Text(r.region.displayName),
-                            subtitle: Text(
-                              '${_painTypeHistoryLabel(r.type)} · ${DateFormat('dd/MM/yyyy HH:mm').format(r.recordedAt)}',
-                            ),
-                          );
-                        },
-                      ),
+                child: state.isLoadingHistory
+                    ? const Center(child: CircularProgressIndicator())
+                    : state.history.isEmpty
+                        ? const Center(
+                            child: Text('Sin registros de dolor aún'))
+                        : ListView.builder(
+                            controller: controller,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppDimensions.screenPadding),
+                            itemCount: state.history.length,
+                            itemBuilder: (context, i) {
+                              final r = state.history[i];
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: AppColors.painModule
+                                      .withValues(alpha: 0.15),
+                                  child: Text('${r.evaScore}',
+                                      style: const TextStyle(
+                                          color: AppColors.painModule,
+                                          fontWeight: FontWeight.w700)),
+                                ),
+                                title: Text(r.region.displayName),
+                                subtitle: Text(
+                                  '${_painTypeHistoryLabel(r.type)} · ${DateFormat('dd/MM/yyyy HH:mm').format(r.recordedAt.toLocal())}',
+                                ),
+                              );
+                            },
+                          ),
               ),
             ],
           );

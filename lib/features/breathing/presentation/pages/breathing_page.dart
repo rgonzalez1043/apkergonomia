@@ -3,18 +3,57 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
+import '../../../gamification/presentation/cubit/gamification_cubit.dart';
 import '../../domain/entities/breathing_technique.dart';
 import '../bloc/breathing_bloc.dart';
 import '../bloc/breathing_event.dart';
 import '../bloc/breathing_state.dart';
 import '../widgets/breathing_circle_widget.dart';
 
-class BreathingPage extends StatelessWidget {
+class BreathingPage extends StatefulWidget {
   const BreathingPage({super.key});
 
   @override
+  State<BreathingPage> createState() => _BreathingPageState();
+}
+
+class _BreathingPageState extends State<BreathingPage>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  void _pause() {
+    final bloc = context.read<BreathingBloc>();
+    if (bloc.state.isRunning) bloc.add(const BreathingSessionPaused());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!TickerMode.of(context)) _pause();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _pause();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<BreathingBloc, BreathingState>(
+    return BlocConsumer<BreathingBloc, BreathingState>(
+      listenWhen: (previous, current) =>
+          !previous.isComplete && current.isComplete,
+      listener: (context, _) =>
+          context.read<GamificationCubit>().completeBreathingSession(),
       builder: (context, state) {
         if (state.selectedTechnique != null &&
             state.phase != BreathingPhase.idle) {
@@ -40,6 +79,16 @@ class _SelectionView extends StatelessWidget {
           : ListView(
               padding: const EdgeInsets.all(AppDimensions.screenPadding),
               children: [
+                if (state.error != null) ...[
+                  Text(state.error!,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error)),
+                  TextButton(
+                      onPressed: () => context
+                          .read<BreathingBloc>()
+                          .add(const BreathingTechniquesLoaded()),
+                      child: const Text('Reintentar')),
+                ],
                 Text(
                   'Elige una técnica',
                   style: Theme.of(context).textTheme.headlineSmall,
@@ -193,29 +242,33 @@ class _SessionView extends StatelessWidget {
         children: [
           Expanded(
             child: Center(
-              child: state.isComplete
-                  ? _CompletionView(technique: technique)
-                  : Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        BreathingCircleWidget(
-                          phase: state.phase,
-                          secondsRemaining: state.secondsRemaining,
-                          ambientColor: technique.ambientColor,
-                        ),
-                        const SizedBox(height: AppDimensions.xl),
-                        Text(
-                          'Ciclo ${state.currentCycle + 1} de ${technique.totalCycles}',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: AppDimensions.sm),
-                        Text(
-                          technique.avatarGuideScript,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppDimensions.md),
+                child: state.isComplete
+                    ? _CompletionView(technique: technique)
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          BreathingCircleWidget(
+                            phase: state.phase,
+                            secondsRemaining: state.secondsRemaining,
+                            ambientColor: technique.ambientColor,
+                            isRunning: state.isRunning,
+                          ),
+                          const SizedBox(height: AppDimensions.xl),
+                          Text(
+                            'Ciclo ${state.currentCycle + 1} de ${technique.totalCycles}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: AppDimensions.sm),
+                          Text(
+                            technique.avatarGuideScript,
+                            style: Theme.of(context).textTheme.bodySmall,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+              ),
             ),
           ),
           Padding(

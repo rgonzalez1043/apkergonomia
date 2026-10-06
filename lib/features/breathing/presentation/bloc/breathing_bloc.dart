@@ -50,7 +50,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
 
   void _onStart(BreathingSessionStarted event, Emitter<BreathingState> emit) {
     final technique = state.selectedTechnique;
-    if (technique == null) return;
+    if (technique == null || state.isRunning) return;
     emit(state.copyWith(currentCycle: 0));
     _startPhase(BreathingPhase.inhaling, technique.inhaleSeconds, emit);
   }
@@ -94,26 +94,34 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
       case BreathingPhase.holding:
         _startPhase(BreathingPhase.exhaling, technique.exhaleSeconds, emit);
       case BreathingPhase.exhaling:
-        final newCycle = state.currentCycle + 1;
-        if (newCycle >= technique.totalCycles) {
-          _timer?.cancel();
-          _phaseSecondsLeft = 0;
-          emit(state.copyWith(
-              phase: BreathingPhase.complete,
-              isRunning: false,
-              currentCycle: newCycle));
-        } else if (technique.holdAfterExhale > 0) {
-          emit(state.copyWith(currentCycle: newCycle));
+        if (technique.holdAfterExhale > 0) {
           _startPhase(BreathingPhase.holdingAfterExhale,
               technique.holdAfterExhale, emit);
         } else {
-          emit(state.copyWith(currentCycle: newCycle));
-          _startPhase(BreathingPhase.inhaling, technique.inhaleSeconds, emit);
+          _finishCycle(emit);
         }
       case BreathingPhase.holdingAfterExhale:
-        _startPhase(BreathingPhase.inhaling, technique.inhaleSeconds, emit);
+        _finishCycle(emit);
       default:
         break;
+    }
+  }
+
+  void _finishCycle(Emitter<BreathingState> emit) {
+    final technique = state.selectedTechnique!;
+    final completedCycles = state.currentCycle + 1;
+    if (completedCycles >= technique.totalCycles) {
+      _timer?.cancel();
+      _phaseSecondsLeft = 0;
+      emit(state.copyWith(
+        phase: BreathingPhase.complete,
+        isRunning: false,
+        secondsRemaining: 0,
+        currentCycle: completedCycles,
+      ));
+    } else {
+      emit(state.copyWith(currentCycle: completedCycles));
+      _startPhase(BreathingPhase.inhaling, technique.inhaleSeconds, emit);
     }
   }
 

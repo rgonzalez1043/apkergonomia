@@ -23,6 +23,10 @@ class AchievementsPage extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(AppDimensions.screenPadding),
             children: [
+              if (state.error != null)
+                Text(state.error!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
               // XP y nivel
               Container(
                 padding: const EdgeInsets.all(AppDimensions.lg),

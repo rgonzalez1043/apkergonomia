@@ -57,7 +57,9 @@ class _InteractiveBodyModelState extends State<InteractiveBodyModel> {
       (int viewId) => _iframe,
     );
     _messageSubscription = web.window.onMessage.listen(_onMessage);
-    _source = Uri.base.resolve('assets/assets/three/body_map.html').replace(
+    _source = Uri.parse(web.document.baseURI)
+        .resolve('assets/assets/three/body_map.html')
+        .replace(
       queryParameters: {
         'instance': _instanceId,
         'view': widget.view.name,
@@ -70,6 +72,10 @@ class _InteractiveBodyModelState extends State<InteractiveBodyModel> {
   }
 
   void _onMessage(web.MessageEvent event) {
+    if (event.origin != web.window.location.origin ||
+        event.source != _iframe.contentWindow) {
+      return;
+    }
     final raw = event.data.dartify();
     if (raw is! String) return;
     final Object? decoded;
@@ -118,7 +124,8 @@ class _InteractiveBodyModelState extends State<InteractiveBodyModel> {
       'view': widget.view.name,
       'theme': widget.isDark ? 'dark' : 'light',
     });
-    _iframe.contentWindow?.postMessage(command.toJS, '*'.toJS);
+    _iframe.contentWindow
+        ?.postMessage(command.toJS, web.window.location.origin.toJS);
   }
 
   @override

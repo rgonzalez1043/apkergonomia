@@ -10,6 +10,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/avatar_3d_assets.dart';
 import '../../../../core/constants/body_region.dart';
+import '../../../../core/utils/platform_capabilities.dart';
 import 'body_model_view.dart';
 import 'interactive_body_model.dart';
 
@@ -98,8 +99,8 @@ class _BodyMapWidgetState extends State<BodyMapWidget> {
   // ── Estado del modelo 3D (referencia visual, no interactivo) ──────────────
   // En web, model_viewer_plus no reenvia sus eventos al JavascriptChannel de
   // Flutter. El propio componente gestiona la carga y el reveal del modelo.
-  bool _modelLoaded = kIsWeb;
-  bool _modelFailed = false;
+  bool _modelLoaded = false;
+  bool _modelFailed = !supportsEmbeddedViewers;
   Timer? _loadTimer;
   BodyModelView _modelView = BodyModelView.front;
   int _modelRevision = 0;
@@ -110,6 +111,7 @@ class _BodyMapWidgetState extends State<BodyMapWidget> {
   @override
   void initState() {
     super.initState();
+    if (_modelFailed) return;
     // Timer de seguridad: si en 45 s no llega 'load', mostramos fallback.
     _loadTimer = Timer(const Duration(seconds: 45), () {
       if (mounted && !_modelLoaded) {
@@ -135,7 +137,7 @@ class _BodyMapWidgetState extends State<BodyMapWidget> {
   }
 
   void _retry3D() {
-    if (!mounted) return;
+    if (!mounted || !supportsEmbeddedViewers) return;
     setState(() {
       _modelFailed = false;
       _modelLoaded = false;

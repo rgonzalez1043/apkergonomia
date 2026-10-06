@@ -92,53 +92,56 @@ class _AuthPageState extends State<AuthPage>
                   labelColor: AppColors.primary,
                 ),
                 const SizedBox(height: AppDimensions.lg),
+                Text(
+                  'Modo local de demostración. Los perfiles se guardan en este dispositivo; la contraseña no se verifica con un servicio de identidad.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppDimensions.md),
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is AuthLoading;
-                    return SizedBox(
-                      height: 320,
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _LoginForm(
-                            formKey: _loginFormKey,
-                            emailController: _emailController,
-                            passwordController: _passwordController,
-                            obscurePassword: _obscurePassword,
-                            onToggleObscure: () => setState(
-                                () => _obscurePassword = !_obscurePassword),
-                            isLoading: isLoading,
-                            onSubmit: () {
-                              if (_loginFormKey.currentState!.validate()) {
-                                context
-                                    .read<AuthBloc>()
-                                    .add(AuthSignInRequested(
-                                      email: _emailController.text.trim(),
-                                      password: _passwordController.text,
-                                    ));
-                              }
-                            },
-                          ),
-                          _RegisterForm(
-                            formKey: _registerFormKey,
-                            nameController: _nameController,
-                            emailController: _regEmailController,
-                            passwordController: _regPasswordController,
-                            isLoading: isLoading,
-                            onSubmit: () {
-                              if (_registerFormKey.currentState!.validate()) {
-                                context
-                                    .read<AuthBloc>()
-                                    .add(AuthSignUpRequested(
-                                      email: _regEmailController.text.trim(),
-                                      password: _regPasswordController.text,
-                                      displayName: _nameController.text.trim(),
-                                    ));
-                              }
-                            },
-                          ),
-                        ],
-                      ),
+                    return AnimatedBuilder(
+                      animation: _tabController,
+                      builder: (context, _) => _tabController.index == 0
+                          ? _LoginForm(
+                              formKey: _loginFormKey,
+                              emailController: _emailController,
+                              passwordController: _passwordController,
+                              obscurePassword: _obscurePassword,
+                              onToggleObscure: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
+                              isLoading: isLoading,
+                              onSubmit: () {
+                                if (_loginFormKey.currentState!.validate()) {
+                                  context
+                                      .read<AuthBloc>()
+                                      .add(AuthSignInRequested(
+                                        email: _emailController.text.trim(),
+                                        password: _passwordController.text,
+                                      ));
+                                }
+                              },
+                            )
+                          : _RegisterForm(
+                              formKey: _registerFormKey,
+                              nameController: _nameController,
+                              emailController: _regEmailController,
+                              passwordController: _regPasswordController,
+                              isLoading: isLoading,
+                              onSubmit: () {
+                                if (_registerFormKey.currentState!.validate()) {
+                                  context
+                                      .read<AuthBloc>()
+                                      .add(AuthSignUpRequested(
+                                        email: _regEmailController.text.trim(),
+                                        password: _regPasswordController.text,
+                                        displayName:
+                                            _nameController.text.trim(),
+                                      ));
+                                }
+                              },
+                            ),
                     );
                   },
                 ),

@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
+import '../../../../core/utils/platform_capabilities.dart';
 import '../../domain/entities/exercise.dart';
 import 'exercise_media_catalog.dart';
 import 'exercise_video_embed.dart';
@@ -193,6 +194,15 @@ class _ExerciseVideoPlayer extends StatelessWidget {
       );
     }
 
+    if (!supportsEmbeddedViewers) {
+      return const AspectRatio(
+        aspectRatio: 16 / 9,
+        child: _VideoUnavailable(
+            message:
+                'Usa «Abrir en YouTube» para ver el video en tu navegador.'),
+      );
+    }
+
     return AspectRatio(
       aspectRatio: 16 / 9,
       child: ClipRRect(
@@ -210,11 +220,13 @@ class _ExerciseVideoPlayer extends StatelessWidget {
 }
 
 class _VideoUnavailable extends StatelessWidget {
-  const _VideoUnavailable();
+  final String message;
+  const _VideoUnavailable(
+      {this.message = 'Video no disponible. Revisa tu conexión.'});
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
+    return ColoredBox(
       color: Color(0xFF101820),
       child: Center(
         child: Padding(
@@ -222,10 +234,10 @@ class _VideoUnavailable extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.videocam_off_outlined, color: Colors.white70),
-              SizedBox(height: 8),
+              const Icon(Icons.videocam_off_outlined, color: Colors.white70),
+              const SizedBox(height: 8),
               Text(
-                'Video no disponible. Revisa tu conexión.',
+                message,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white),
               ),
@@ -243,7 +255,12 @@ class _VideoAttribution extends StatelessWidget {
   const _VideoAttribution({required this.video});
 
   Future<void> _open(BuildContext context, Uri uri) async {
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    bool opened;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
     if (!opened && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo abrir el enlace del video.')),

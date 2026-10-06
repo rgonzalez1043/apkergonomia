@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +20,7 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
   bool _hasNavigated = false;
+  Timer? _navigationTimer;
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -38,12 +41,34 @@ class _SplashPageState extends State<SplashPage>
           curve: const Interval(0.0, 0.6, curve: Curves.elasticOut)),
     );
     _controller.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scheduleNavigation(context.read<AuthBloc>().state);
+    });
   }
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _scheduleNavigation(AuthState state) {
+    if (_hasNavigated ||
+        (state is! AuthAuthenticated && state is! AuthUnauthenticated)) {
+      return;
+    }
+    _hasNavigated = true;
+    _navigationTimer = Timer(const Duration(milliseconds: 1400), () async {
+      if (!mounted) return;
+      if (context.read<AuthBloc>().state is AuthAuthenticated) {
+        context.go(RouteNames.home);
+      } else {
+        final completed = await OnboardingPreferences.isCompleted();
+        if (!mounted) return;
+        context.go(completed ? RouteNames.auth : RouteNames.onboarding);
+      }
+    });
   }
 
   @override
@@ -51,21 +76,7 @@ class _SplashPageState extends State<SplashPage>
     return BlocListener<AuthBloc, AuthState>(
       listenWhen: (_, state) =>
           state is AuthAuthenticated || state is AuthUnauthenticated,
-      listener: (context, state) async {
-        if (_hasNavigated) return;
-        _hasNavigated = true;
-        await Future.delayed(const Duration(milliseconds: 1400));
-        if (!mounted) return;
-        if (state is AuthAuthenticated) {
-          context.go(RouteNames.home);
-        } else {
-          final onboardingCompleted = await OnboardingPreferences.isCompleted();
-          if (!mounted) return;
-          context.go(
-            onboardingCompleted ? RouteNames.auth : RouteNames.onboarding,
-          );
-        }
-      },
+      listener: (_, state) => _scheduleNavigation(state),
       child: Scaffold(
         backgroundColor: AppColors.backgroundDark,
         body: AnimatedBuilder(

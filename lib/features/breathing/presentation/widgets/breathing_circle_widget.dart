@@ -6,12 +6,14 @@ class BreathingCircleWidget extends StatefulWidget {
   final BreathingPhase phase;
   final int secondsRemaining;
   final Color ambientColor;
+  final bool isRunning;
 
   const BreathingCircleWidget({
     super.key,
     required this.phase,
     required this.secondsRemaining,
     required this.ambientColor,
+    this.isRunning = true,
   });
 
   @override
@@ -26,8 +28,7 @@ class _BreathingCircleWidgetState extends State<BreathingCircleWidget>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+    _controller = AnimationController(vsync: this);
     _scaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
@@ -37,20 +38,28 @@ class _BreathingCircleWidgetState extends State<BreathingCircleWidget>
   @override
   void didUpdateWidget(BreathingCircleWidget old) {
     super.didUpdateWidget(old);
-    if (old.phase != widget.phase) _updateAnimation();
+    if (old.phase != widget.phase || old.isRunning != widget.isRunning) {
+      _updateAnimation();
+    }
   }
 
   void _updateAnimation() {
+    if (!widget.isRunning) {
+      _controller.stop();
+      return;
+    }
+    final duration = Duration(seconds: widget.secondsRemaining);
     switch (widget.phase) {
       case BreathingPhase.inhaling:
-        _controller.forward();
+        _controller.animateTo(1, duration: duration);
       case BreathingPhase.exhaling:
-        _controller.reverse();
+        _controller.animateBack(0, duration: duration);
       case BreathingPhase.holding:
+        _controller.value = 1;
       case BreathingPhase.holdingAfterExhale:
-        _controller.stop();
+        _controller.value = 0;
       default:
-        _controller.animateTo(0.6);
+        _controller.value = 0;
     }
   }
 
@@ -122,6 +131,11 @@ class _BreathingCircleWidgetState extends State<BreathingCircleWidget>
   }
 
   String get _phaseLabel {
+    if (!widget.isRunning &&
+        widget.phase != BreathingPhase.complete &&
+        widget.phase != BreathingPhase.idle) {
+      return 'En pausa';
+    }
     switch (widget.phase) {
       case BreathingPhase.inhaling:
         return 'Inhala';

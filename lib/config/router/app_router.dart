@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../injection/injection_container.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
 import '../../features/breathing/presentation/bloc/breathing_bloc.dart';
 import '../../features/breathing/presentation/bloc/breathing_event.dart';
@@ -22,85 +24,97 @@ import 'route_names.dart';
 class AppRouter {
   AppRouter._();
 
-  static final _rootNavigatorKey = GlobalKey<NavigatorState>();
+  static GoRouter create(AuthBloc auth, Listenable refresh) => GoRouter(
+        refreshListenable: refresh,
+        initialLocation: RouteNames.splash,
+        redirect: (context, state) {
+          final path = state.uri.path;
+          final authState = auth.state;
+          if (authState is AuthInitial) {
+            return path == RouteNames.splash ? null : RouteNames.splash;
+          }
+          final isPublic = path == RouteNames.splash ||
+              path == RouteNames.auth ||
+              path == RouteNames.onboarding;
+          if (authState is AuthAuthenticated) {
+            return isPublic || path == '/' ? RouteNames.home : null;
+          }
+          return isPublic ? null : RouteNames.auth;
+        },
+        routes: [
+          GoRoute(
+            path: RouteNames.splash,
+            builder: (_, __) => const SplashPage(),
+          ),
+          GoRoute(
+            path: RouteNames.onboarding,
+            builder: (_, __) => const OnboardingPage(),
+          ),
+          GoRoute(
+            path: RouteNames.auth,
+            builder: (_, __) => const AuthPage(),
+          ),
+          GoRoute(
+            path: RouteNames.avatar,
+            builder: (context, __) => BlocProvider(
+              create: (_) => getIt<AvatarCubit>()..loadConfig(),
+              child: const AvatarPage(),
+            ),
+          ),
 
-  static final router = GoRouter(
-    navigatorKey: _rootNavigatorKey,
-    initialLocation: RouteNames.splash,
-    routes: [
-      GoRoute(
-        path: RouteNames.splash,
-        builder: (_, __) => const SplashPage(),
-      ),
-      GoRoute(
-        path: RouteNames.onboarding,
-        builder: (_, __) => const OnboardingPage(),
-      ),
-      GoRoute(
-        path: RouteNames.auth,
-        builder: (_, __) => const AuthPage(),
-      ),
-      GoRoute(
-        path: RouteNames.avatar,
-        builder: (context, __) => BlocProvider(
-          create: (_) => getIt<AvatarCubit>()..loadConfig(),
-          child: const AvatarPage(),
-        ),
-      ),
-
-      // Shell con NavigationBar
-      StatefulShellRoute.indexedStack(
-        builder: (_, __, shell) => MainShell(navigationShell: shell),
-        branches: [
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RouteNames.home,
-                builder: (_, __) => const HomePage(),
+          // Shell con NavigationBar
+          StatefulShellRoute.indexedStack(
+            builder: (_, __, shell) => MainShell(navigationShell: shell),
+            branches: [
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: RouteNames.home,
+                    builder: (_, __) => const HomePage(),
+                  ),
+                ],
               ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RouteNames.pain,
-                builder: (context, __) => BlocProvider(
-                  create: (_) => getIt<PainBloc>(),
-                  child: const PainMapPage(),
-                ),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: RouteNames.pain,
+                    builder: (context, __) => BlocProvider(
+                      create: (_) => getIt<PainBloc>(),
+                      child: const PainMapPage(),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RouteNames.breathing,
-                builder: (context, __) => BlocProvider(
-                  create: (_) => getIt<BreathingBloc>()
-                    ..add(const BreathingTechniquesLoaded()),
-                  child: const BreathingPage(),
-                ),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: RouteNames.breathing,
+                    builder: (context, __) => BlocProvider(
+                      create: (_) => getIt<BreathingBloc>()
+                        ..add(const BreathingTechniquesLoaded()),
+                      child: const BreathingPage(),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RouteNames.achievements,
-                builder: (_, __) => const AchievementsPage(),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: RouteNames.achievements,
+                    builder: (_, __) => const AchievementsPage(),
+                  ),
+                ],
               ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RouteNames.settings,
-                builder: (_, __) => const SettingsPage(),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: RouteNames.settings,
+                    builder: (_, __) => const SettingsPage(),
+                  ),
+                ],
               ),
             ],
           ),
         ],
-      ),
-    ],
-  );
+      );
 }

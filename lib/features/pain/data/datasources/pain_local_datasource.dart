@@ -1,7 +1,7 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../../../../core/constants/body_region.dart';
+import '../../../../core/storage/user_local_storage.dart';
 import '../../domain/entities/exercise.dart';
 import '../../domain/entities/pain_record.dart';
 
@@ -9,11 +9,14 @@ abstract class PainLocalDataSource {
   Future<List<Exercise>> getExercisesByRegionAndStage(
       BodyRegion region, int evaStage);
   Future<String> savePainRecord(PainRecord record);
-  Future<List<PainRecord>> getPainHistory({int limit = 50});
+  Future<List<PainRecord>> getPainHistory({int? limit = 50});
 }
 
 class PainLocalDataSourceImpl implements PainLocalDataSource {
-  static const _painRecordsKey = 'pain_records';
+  final UserLocalStorage storage;
+  Future<void> _pendingWrite = Future.value();
+
+  PainLocalDataSourceImpl(this.storage);
 
   @override
   Future<List<Exercise>> getExercisesByRegionAndStage(
@@ -22,9 +25,29 @@ class PainLocalDataSourceImpl implements PainLocalDataSource {
   }
 
   @override
-  Future<String> savePainRecord(PainRecord record) async {
-    final prefs = await SharedPreferences.getInstance();
-    final existing = prefs.getStringList(_painRecordsKey) ?? [];
+  Future<String> savePainRecord(PainRecord record) {
+    final key = storage.keyFor('pain_records');
+    final write = _pendingWrite.then((_) => _saveRecord(key, record));
+    // A failed write must not prevent later saves; its caller still sees the error.
+    _pendingWrite =
+        write.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return write;
+  }
+
+  Future<String> _saveRecord(String key, PainRecord record) async {
+    if (record.id.isEmpty || record.evaScore < 0 || record.evaScore > 10) {
+      throw ArgumentError('Registro de dolor inválido');
+    }
+    final existing =
+        List<String>.of(storage.preferences.getStringList(key) ?? []);
+    // Repeated delivery of the same record must not duplicate it.
+    existing.removeWhere((raw) {
+      try {
+        return (jsonDecode(raw) as Map<String, dynamic>)['id'] == record.id;
+      } catch (_) {
+        return false;
+      }
+    });
     // Use the record's own ID instead of generating a new one to avoid mismatch.
     final map = {
       'id': record.id,
@@ -36,23 +59,27 @@ class PainLocalDataSourceImpl implements PainLocalDataSource {
       'notes': record.notes,
     };
     existing.add(jsonEncode(map));
-    await prefs.setStringList(_painRecordsKey, existing);
+    await storage.writeStringList(key, existing);
     return record.id;
   }
 
   @override
-  Future<List<PainRecord>> getPainHistory({int limit = 50}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_painRecordsKey) ?? [];
+  Future<List<PainRecord>> getPainHistory({int? limit = 50}) async {
+    final key = storage.keyFor('pain_records');
+    if (limit != null && limit < 0) throw ArgumentError.value(limit, 'limit');
+    await _pendingWrite;
+    final raw = storage.preferences.getStringList(key) ?? [];
     final records = <PainRecord>[];
     for (final s in raw) {
       try {
         final map = jsonDecode(s) as Map<String, dynamic>;
+        final score = map['evaScore'] as int;
+        if (score < 0 || score > 10 || (map['id'] as String).isEmpty) continue;
         records.add(PainRecord(
           id: map['id'] as String,
           region: BodyRegion.values.byName(map['region'] as String),
           type: PainType.values.byName(map['type'] as String),
-          evaScore: map['evaScore'] as int,
+          evaScore: score,
           recordedAt: DateTime.parse(map['recordedAt'] as String),
           exercisesCompleted:
               List<String>.from(map['exercisesCompleted'] as List? ?? []),
@@ -65,7 +92,7 @@ class PainLocalDataSourceImpl implements PainLocalDataSource {
     // Sort by date descending (most recent first) to guarantee correct order
     // regardless of insertion order in SharedPreferences.
     records.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-    return records.take(limit).toList();
+    return limit == null ? records : records.take(limit).toList();
   }
 }
 
@@ -78,10 +105,15 @@ class ExerciseSeedData {
         .where((e) => e.targetRegion == region && e.evaStage == evaStage)
         .toList();
     if (all.isNotEmpty) return all;
-    // Fallback: cualquier etapa de la misma región
-    final sameRegion =
-        _allExercises.where((e) => e.targetRegion == region).toList();
-    if (sameRegion.isNotEmpty) return sameRegion;
+    // Use the closest earlier stage without introducing more advanced exercises.
+    final sameRegion = _allExercises
+        .where((e) => e.targetRegion == region && e.evaStage <= evaStage)
+        .toList();
+    if (sameRegion.isNotEmpty) {
+      final closestStage =
+          sameRegion.map((e) => e.evaStage).reduce((a, b) => a > b ? a : b);
+      return sameRegion.where((e) => e.evaStage == closestStage).toList();
+    }
     // Último recurso: región genérica similar
     return _fallbackExercises(region);
   }

@@ -19,10 +19,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.signOut,
     required this.restoreSession,
   }) : super(const AuthInitial()) {
-    on<AuthCheckRequested>(_onCheckRequested);
-    on<AuthSignInRequested>(_onSignIn);
-    on<AuthSignUpRequested>(_onSignUp);
-    on<AuthSignOutRequested>(_onSignOut);
+    // Serialize all auth operations so a late restore/sign-in cannot undo logout.
+    on<AuthEvent>((event, emit) async {
+      if (event is AuthCheckRequested) await _onCheckRequested(event, emit);
+      if (event is AuthSignInRequested) await _onSignIn(event, emit);
+      if (event is AuthSignUpRequested) await _onSignUp(event, emit);
+      if (event is AuthSignOutRequested) await _onSignOut(event, emit);
+    }, transformer: (events, mapper) => events.asyncExpand(mapper));
   }
 
   Future<void> _onCheckRequested(
@@ -64,9 +67,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onSignOut(
       AuthSignOutRequested event, Emitter<AuthState> emit) async {
+    final previous = state;
     final result = await signOut();
     result.fold(
-      (failure) => emit(AuthError(failure.message)),
+      (failure) => emit(previous is AuthAuthenticated
+          ? AuthAuthenticated(previous.user, error: failure.message)
+          : AuthError(failure.message)),
       (_) => emit(const AuthUnauthenticated()),
     );
   }

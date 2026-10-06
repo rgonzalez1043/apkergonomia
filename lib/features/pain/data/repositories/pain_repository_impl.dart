@@ -49,7 +49,7 @@ class PainRepositoryImpl implements PainRepository {
   Future<Either<Failure, List<PainRecord>>> getPainHistoryByRegion(
       BodyRegion region) async {
     try {
-      final all = await localDataSource.getPainHistory();
+      final all = await localDataSource.getPainHistory(limit: null);
       return Right(all.where((r) => r.region == region).toList());
     } catch (e) {
       return Left(CacheFailure(e.toString()));

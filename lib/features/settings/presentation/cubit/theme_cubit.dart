@@ -4,28 +4,40 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeCubit extends Cubit<ThemeMode> {
   static const _key = 'theme_mode';
+  int _revision = 0;
 
   ThemeCubit() : super(ThemeMode.system) {
     _loadTheme();
   }
 
   Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_key);
-    switch (saved) {
-      case 'dark':
-        emit(ThemeMode.dark);
-      case 'light':
-        emit(ThemeMode.light);
-      default:
-        emit(ThemeMode.system);
+    final revision = _revision;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (isClosed || revision != _revision) return;
+      final saved = prefs.get(_key);
+      switch (saved) {
+        case 'dark':
+          emit(ThemeMode.dark);
+        case 'light':
+          emit(ThemeMode.light);
+        default:
+          emit(ThemeMode.system);
+      }
+    } catch (error, stackTrace) {
+      if (!isClosed) addError(error, stackTrace);
     }
   }
 
   Future<void> setMode(ThemeMode mode) async {
+    _revision++;
     emit(mode);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, mode.name);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_key, mode.name);
+    } catch (error, stackTrace) {
+      if (!isClosed) addError(error, stackTrace);
+    }
   }
 
   Future<void> setDark() async {

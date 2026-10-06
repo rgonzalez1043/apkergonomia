@@ -1,7 +1,9 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/network/network_info.dart';
+import '../../core/storage/user_local_storage.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
@@ -33,13 +35,16 @@ import '../../features/settings/presentation/cubit/theme_cubit.dart';
 final getIt = GetIt.instance;
 
 Future<void> configureDependencies() async {
+  getIt.registerSingleton(
+      UserLocalStorage(await SharedPreferences.getInstance()));
   // Core
   getIt.registerLazySingleton<Connectivity>(() => Connectivity());
   getIt.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(getIt()));
 
   // Auth
   getIt.registerLazySingleton<AuthRemoteDataSource>(
-      () => AuthRemoteDataSourceImpl());
+      () => AuthRemoteDataSourceImpl(getIt()),
+      dispose: (source) => (source as AuthRemoteDataSourceImpl).dispose());
   getIt.registerLazySingleton<AuthRepository>(
     () =>
         AuthRepositoryImpl(getIt<AuthRemoteDataSource>(), getIt<NetworkInfo>()),
@@ -48,7 +53,7 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton(() => SignUpWithEmail(getIt()));
   getIt.registerLazySingleton(() => SignOutUseCase(getIt()));
   getIt.registerLazySingleton(() => RestoreSession(getIt()));
-  getIt.registerLazySingleton(() => AuthBloc(
+  getIt.registerFactory(() => AuthBloc(
         signInWithEmail: getIt(),
         signUpWithEmail: getIt(),
         signOut: getIt(),
@@ -57,7 +62,7 @@ Future<void> configureDependencies() async {
 
   // Pain
   getIt.registerLazySingleton<PainLocalDataSource>(
-      () => PainLocalDataSourceImpl());
+      () => PainLocalDataSourceImpl(getIt()));
   getIt.registerLazySingleton<PainRepository>(
     () => PainRepositoryImpl(getIt<PainLocalDataSource>()),
   );
@@ -78,7 +83,7 @@ Future<void> configureDependencies() async {
 
   // Avatar
   getIt.registerLazySingleton<AvatarLocalDataSource>(
-      () => AvatarLocalDataSourceImpl());
+      () => AvatarLocalDataSourceImpl(getIt()));
   getIt.registerLazySingleton<AvatarRepository>(
       () => AvatarRepositoryImpl(getIt<AvatarLocalDataSource>()));
   getIt.registerLazySingleton(() => LoadAvatarConfig(getIt()));
@@ -89,8 +94,8 @@ Future<void> configureDependencies() async {
       ));
 
   // Gamification
-  getIt.registerLazySingleton(() => GamificationCubit());
+  getIt.registerFactory(() => GamificationCubit(getIt()));
 
   // Settings
-  getIt.registerLazySingleton(() => ThemeCubit());
+  getIt.registerFactory(() => ThemeCubit());
 }

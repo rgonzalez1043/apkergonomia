@@ -62,6 +62,13 @@ class _ExerciseVideoEmbedState extends State<ExerciseVideoEmbed> {
   }
 
   @override
+  void dispose() {
+    _iframe.src = 'about:blank';
+    _iframe.remove();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return HtmlElementView(viewType: _viewType);
   }

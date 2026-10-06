@@ -153,7 +153,7 @@ function emit(type, data = {}) {
     }
   } catch (_) {}
   try {
-    if (window.parent && window.parent !== window) window.parent.postMessage(message, '*');
+    if (window.parent && window.parent !== window) window.parent.postMessage(message, window.location.origin);
   } catch (_) {}
 }
 
@@ -290,6 +290,7 @@ function applyCommand(command) {
 
 window.bodyMapCommand = applyCommand;
 window.addEventListener('message', (event) => {
+  if (event.source !== window.parent || event.origin !== window.location.origin) return;
   let value = event.data;
   if (typeof value === 'string') {
     try { value = JSON.parse(value); } catch (_) { return; }

@@ -11,6 +11,9 @@ class NetworkException implements Exception {
 class CacheException implements Exception {
   final String message;
   const CacheException([this.message = 'Error de caché']);
+
+  @override
+  String toString() => message;
 }
 
 class AuthException implements Exception {

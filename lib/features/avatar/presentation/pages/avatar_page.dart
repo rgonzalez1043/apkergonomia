@@ -8,6 +8,7 @@ import '../../../../shared/models/user_profile_model.dart';
 import '../../../avatar/presentation/cubit/avatar_cubit.dart';
 import '../../../avatar/presentation/cubit/avatar_state.dart';
 import '../../../avatar/presentation/widgets/avatar_preview_widget.dart';
+import '../../../gamification/presentation/cubit/gamification_cubit.dart';
 
 class AvatarPage extends StatelessWidget {
   const AvatarPage({super.key});
@@ -22,7 +23,11 @@ class AvatarPage extends StatelessWidget {
         ),
         title: const Text('Avatar Work Coach'),
       ),
-      body: BlocBuilder<AvatarCubit, AvatarState>(
+      body: BlocConsumer<AvatarCubit, AvatarState>(
+        listenWhen: (previous, current) =>
+            !previous.saveSuccess && current.saveSuccess,
+        listener: (context, _) =>
+            context.read<GamificationCubit>().recordAvatarEdit(),
         builder: (context, state) {
           return RefreshIndicator(
             onRefresh: () async {

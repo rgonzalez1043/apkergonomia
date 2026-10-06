@@ -46,11 +46,12 @@ class _InteractiveBodyModelState extends State<InteractiveBodyModel> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
+            if (!mounted) return;
             _pageReady = true;
             _sendState();
           },
           onWebResourceError: (error) {
-            if (error.isForMainFrame ?? true) widget.onError();
+            if (mounted && (error.isForMainFrame ?? true)) widget.onError();
           },
         ),
       )
@@ -63,6 +64,7 @@ class _InteractiveBodyModelState extends State<InteractiveBodyModel> {
   }
 
   void _onMessage(JavaScriptMessage message) {
+    if (!mounted) return;
     final Object? decoded;
     try {
       decoded = jsonDecode(message.message);
@@ -100,13 +102,17 @@ class _InteractiveBodyModelState extends State<InteractiveBodyModel> {
   }
 
   Future<void> _sendState() async {
-    if (!_pageReady) return;
+    if (!mounted || !_pageReady) return;
     final command = jsonEncode({
       'selectedRegion': widget.selectedRegion?.name,
       'view': widget.view.name,
       'theme': widget.isDark ? 'dark' : 'light',
     });
-    await _controller.runJavaScript('window.bodyMapCommand($command);');
+    try {
+      await _controller.runJavaScript('window.bodyMapCommand($command);');
+    } catch (_) {
+      if (mounted) widget.onError();
+    }
   }
 
   @override

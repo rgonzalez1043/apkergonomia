@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/storage/user_local_storage.dart';
+import '../../../../core/utils/validators.dart';
 import '../../domain/entities/user_entity.dart';
 
 abstract class AuthRemoteDataSource {
@@ -20,6 +20,9 @@ abstract class AuthRemoteDataSource {
 // Reemplazar por FirebaseAuthDataSourceImpl cuando Firebase esté configurado.
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   static const _sessionKey = 'auth_session';
+  final UserLocalStorage storage;
+
+  AuthRemoteDataSourceImpl(this.storage);
   UserEntity? _currentUser;
   final StreamController<UserEntity?> _authController =
       StreamController<UserEntity?>.broadcast();
@@ -32,15 +35,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<UserEntity> signInWithEmail(String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (password.length < 6) throw const AuthException('Contraseña incorrecta');
+    email = email.trim().toLowerCase();
+    _validateCredentials(email, password);
     final user = UserEntity(
-      uid: 'local_${email.hashCode}',
+      uid: _localId(email),
       email: email,
       displayName: email.split('@').first,
     );
-    _currentUser = user;
     await _persistUser(user);
+    await storage.activate(user.uid);
+    _currentUser = user;
     _authController.add(user);
     return user;
   }
@@ -48,57 +52,68 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserEntity> signUpWithEmail(
       String email, String password, String displayName) async {
-    await Future.delayed(const Duration(milliseconds: 600));
+    email = email.trim().toLowerCase();
+    _validateCredentials(email, password);
+    final nameError = Validators.displayName(displayName);
+    if (nameError != null) throw AuthException(nameError);
     final user = UserEntity(
-      uid: 'local_${email.hashCode}',
+      uid: _localId(email),
       email: email,
-      displayName: displayName,
+      displayName: displayName.trim(),
     );
-    _currentUser = user;
     await _persistUser(user);
+    await storage.activate(user.uid);
+    _currentUser = user;
     _authController.add(user);
     return user;
   }
 
   @override
   Future<UserEntity?> restoreSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_sessionKey);
+    final prefs = storage.preferences;
+    final raw = prefs.get(_sessionKey);
+    _currentUser = null;
+    storage.clearSession();
     if (raw == null) return null;
 
+    final UserEntity user;
     try {
-      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final map = jsonDecode(raw as String) as Map<String, dynamic>;
       final uid = map['uid'] as String?;
       if (uid == null || uid.isEmpty) throw const FormatException();
 
-      final user = UserEntity(
-        uid: uid,
-        email: map['email'] as String?,
+      final email = (map['email'] as String?)?.trim().toLowerCase();
+      user = UserEntity(
+        uid: uid.startsWith('local_') && email != null ? _localId(email) : uid,
+        email: email,
         displayName: map['displayName'] as String?,
         photoUrl: map['photoUrl'] as String?,
         emailVerified: map['emailVerified'] as bool? ?? false,
       );
-      _currentUser = user;
-      _authController.add(user);
-      return user;
     } catch (_) {
       await prefs.remove(_sessionKey);
       _currentUser = null;
       return null;
     }
+    await storage.activate(user.uid, migrateLegacy: true);
+    await _persistUser(user);
+    _currentUser = user;
+    _authController.add(user);
+    return user;
   }
 
   @override
   Future<void> signOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_sessionKey);
+    if (!await storage.preferences.remove(_sessionKey)) {
+      throw const CacheException('No se pudo cerrar la sesión');
+    }
+    storage.clearSession();
     _currentUser = null;
     _authController.add(null);
   }
 
   Future<void> _persistUser(UserEntity user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
+    await storage.writeString(
       _sessionKey,
       jsonEncode({
         'uid': user.uid,
@@ -109,4 +124,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }),
     );
   }
+
+  String _localId(String email) =>
+      'local_${base64Url.encode(utf8.encode(email))}';
+
+  void _validateCredentials(String email, String password) {
+    final error = Validators.email(email) ?? Validators.password(password);
+    if (error != null) throw AuthException(error);
+  }
+
+  Future<void> dispose() => _authController.close();
 }

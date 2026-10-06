@@ -27,6 +27,7 @@ class UserProgress extends Equatable {
   }
 
   UserProgress addXP(int xp) {
+    if (xp < 0) throw ArgumentError.value(xp, 'xp', 'Must not be negative');
     final newTotalXP = totalXP + xp;
     final newLevel = _calculateLevel(newTotalXP);
     return UserProgress(
@@ -44,7 +45,7 @@ class UserProgress extends Equatable {
     while (_xpForLevel(level) <= xp) {
       level++;
     }
-    return level - 1;
+    return level;
   }
 
   UserProgress unlockAchievement(String achievementId) => UserProgress(
@@ -57,6 +58,12 @@ class UserProgress extends Equatable {
       );
 
   @override
-  List<Object?> get props =>
-      [userId, totalXP, currentLevel, unlockedAchievementIds, streaksByModule];
+  List<Object?> get props => [
+        userId,
+        totalXP,
+        currentLevel,
+        unlockedAchievementIds,
+        streaksByModule,
+        weeklyRanking
+      ];
 }
