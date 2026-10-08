@@ -13,12 +13,20 @@ scene.background = new THREE.Color(params.get('theme') === 'dark' ? 0x142124 : 0
 const camera = new THREE.PerspectiveCamera(25, 1, 0.01, 20);
 camera.position.set(0, 0.04, 4.25);
 
-const renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  alpha: false,
-  preserveDrawingBuffer: true,
-  powerPreference: 'high-performance',
-});
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false,
+    preserveDrawingBuffer: true,
+    powerPreference: 'high-performance',
+  });
+} catch (error) {
+  // three.js requires WebGL2; report it now instead of letting the app time out.
+  setStatus('Este dispositivo no admite el visor 3D');
+  emit('error', { message: 'webgl-unavailable' });
+  throw error;
+}
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;

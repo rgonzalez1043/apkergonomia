@@ -5,6 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../../../../core/constants/body_region.dart';
+import '../../../../core/network/local_asset_server.dart';
 import 'body_model_view.dart';
 
 class InteractiveBodyModel extends StatefulWidget {
@@ -54,12 +55,32 @@ class _InteractiveBodyModelState extends State<InteractiveBodyModel> {
             if (mounted && (error.isForMainFrame ?? true)) widget.onError();
           },
         ),
-      )
-      ..loadFlutterAsset('assets/three/body_map.html');
+      );
 
     final platform = _controller.platform;
     if (platform is AndroidWebViewController) {
       platform.setMediaPlaybackRequiresUserGesture(false);
+    }
+    _loadPage();
+  }
+
+  // file:// pages cannot load ES modules or fetch the GLB, so serve over HTTP.
+  Future<void> _loadPage() async {
+    try {
+      final base = await LocalAssetServer.baseUri;
+      if (!mounted) return;
+      await _controller.loadRequest(
+        base.resolve('assets/three/body_map.html').replace(
+          queryParameters: {
+            'view': widget.view.name,
+            'theme': widget.isDark ? 'dark' : 'light',
+            if (widget.selectedRegion != null)
+              'selected': widget.selectedRegion!.name,
+          },
+        ),
+      );
+    } catch (_) {
+      if (mounted) widget.onError();
     }
   }
 
